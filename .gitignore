@@ -1,0 +1,16 @@
+# Build outputs and downloads. The Action makes them. They never enter the repository.
+dist/
+server/
+server-zip/
+sdk/
+sdk-zip/
+__pycache__/
+*.dll
+*.exe
+*.obj
+*.lib
+*.exp
+*.pdb
+*.svplugin
+*.pem
+!tools/index-public.pem

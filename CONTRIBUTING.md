@@ -5,7 +5,9 @@ Content enters this repository by a pull request. The rules below are the first 
 ## A plugin
 
 1. Make a folder `community/plugins/<id>/`. The id has the form `author.name`, in lower case.
-2. Put these files in it: `plugin.ini` (the manifest), the source of the plugin, `README.md`, and an optional `icon.png`.
+2. Put these files in it: `plugin.ini` (the manifest), the source of the plugin, `build.ps1` (it builds the library that the manifest names), `README.md`, and an optional `icon.png`.
+   Pictures for the plugin page go in `screenshots/`: up to 8 files, PNG or JPEG, at most 2 MiB each.
+   The Action sets `SUBVULPES_SDK` to the SDK folder. `tools/vcvars.ps1` loads the 32-bit build tools.
 3. The icon is a square PNG, 256 by 256 pixels is best. The limits are 64 to 512 pixels and 128 KiB.
 4. Name a license in the manifest (`license=`). The CI refuses content without one.
 5. Open a pull request. A maintainer reads it before it merges.

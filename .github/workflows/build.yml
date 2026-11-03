@@ -1,0 +1,105 @@
+name: Build
+
+# A pull request builds and checks everything and publishes nothing.
+# A push to main also signs the index and replaces the branch dist.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test the build script
+        shell: bash
+        run: python -I tests/test_build_index.py
+
+      - name: Refuse committed binaries
+        shell: bash
+        run: |
+          bad=$(git ls-files | grep -iE '\.(exe|dll|zip|svplugin|7z|rar|bin|dmp)$' || true)
+          if [ -n "$bad" ]; then echo "Binary files are not allowed:"; echo "$bad"; exit 1; fi
+
+      - name: Get the server and the SDK
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo TheGreatVulpzin/SubVulpes --pattern 'SubVulpes-server-v*.zip' --dir server-zip
+          # The SDK has its own release, with a tag that starts with sdk-v. Take the newest one.
+          $tag = gh release list --repo TheGreatVulpzin/SubVulpes --json tagName,publishedAt --jq '[.[] | select(.tagName | startswith("sdk-v"))] | sort_by(.publishedAt) | last | .tagName'
+          if (-not $tag) { throw 'No SDK release found.' }
+          gh release download $tag --repo TheGreatVulpzin/SubVulpes --pattern 'SubVulpes-sdk-v*.zip' --dir sdk-zip
+          Expand-Archive server-zip/*.zip -DestinationPath server
+          Expand-Archive sdk-zip/*.zip -DestinationPath sdk
+          $exe = Get-ChildItem server -Recurse -Filter subvulpes_server.exe | Select-Object -First 1
+          if (-not $exe) { throw 'The server release has no subvulpes_server.exe.' }
+          "SERVER_EXE=$($exe.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SUBVULPES_SDK=$((Resolve-Path sdk).Path)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Build the native plugins
+        shell: pwsh
+        run: |
+          # A plugin folder may hold build.ps1. It writes the library that plugin.ini names, into its own folder.
+          foreach ($seal in 'official', 'community') {
+            $base = Join-Path $seal 'plugins'
+            if (-not (Test-Path $base)) { continue }
+            foreach ($folder in Get-ChildItem $base -Directory) {
+              $script = Join-Path $folder.FullName 'build.ps1'
+              if (Test-Path $script) {
+                Write-Output "Building $($folder.Name)"
+                . (Join-Path $PWD 'tools/vcvars.ps1')
+                Push-Location $folder.FullName
+                try { & $script; if ($LASTEXITCODE) { throw "build.ps1 failed for $($folder.Name)" } } finally { Pop-Location }
+              }
+            }
+          }
+
+      - name: Install Pillow for thumbnails
+        shell: bash
+        run: pip install --quiet pillow==11.0.0
+
+      - name: Build the packages and the index
+        shell: bash
+        run: python -I tools/build_index.py --out dist --server-exe "$SERVER_EXE"
+
+      - name: Sign the index
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          INDEX_SIGNING_KEY: ${{ secrets.INDEX_SIGNING_KEY }}
+        run: |
+          printf '%s\n' "$INDEX_SIGNING_KEY" > "$RUNNER_TEMP/key.pem"
+          openssl dgst -sha256 -sign "$RUNNER_TEMP/key.pem" -out dist/index.json.sig dist/index.json
+          rm -f "$RUNNER_TEMP/key.pem"
+          # The public key that the launcher holds must verify the new seal. A wrong key fails the build here.
+          openssl dgst -sha256 -verify tools/index-public.pem -signature dist/index.json.sig dist/index.json
+
+      - name: Keep the result of a pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to the branch dist
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          git init -q -b dist
+          git config user.name "SubVulpes Workshop"
+          git config user.email "noreply@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Build $GITHUB_SHA"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -q --force origin dist
