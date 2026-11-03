@@ -42,7 +42,7 @@ jobs:
           $exe = Get-ChildItem server -Recurse -Filter subvulpes_server.exe | Select-Object -First 1
           if (-not $exe) { throw 'The server release has no subvulpes_server.exe.' }
           "SERVER_EXE=$($exe.FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "SUBVULPES_SDK=$((Resolve-Path sdk).Path)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "SUBVULPES_SDK=$((Get-ChildItem sdk -Directory | Select-Object -First 1).FullName)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Build the native plugins
         shell: pwsh
