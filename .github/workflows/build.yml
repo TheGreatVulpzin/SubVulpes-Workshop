@@ -32,7 +32,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo TheGreatVulpzin/SubVulpes --pattern 'SubVulpes-server-v*.zip' --dir server-zip
+          # The newest server release, a candidate too. The tag starts with v and a digit. The SDK tags start with sdk-v.
+          $server = gh release list --repo TheGreatVulpzin/SubVulpes --json tagName,publishedAt --jq '[.[] | select(.tagName | test("^v[0-9]"))] | sort_by(.publishedAt) | last | .tagName'
+          if (-not $server) { throw 'No server release found.' }
+          gh release download $server --repo TheGreatVulpzin/SubVulpes --pattern 'SubVulpes-server-v*.zip' --dir server-zip
           # The SDK has its own release, with a tag that starts with sdk-v. Take the newest one.
           $tag = gh release list --repo TheGreatVulpzin/SubVulpes --json tagName,publishedAt --jq '[.[] | select(.tagName | startswith("sdk-v"))] | sort_by(.publishedAt) | last | .tagName'
           if (-not $tag) { throw 'No SDK release found.' }
