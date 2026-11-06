@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "generated": "2026-11-06T19:02:59Z",
+  "plugins": [
+    {
+      "id": "sv.jukebox",
+      "name": "MIDI Jukebox",
+      "description": "Play MIDI music with any game sound.",
+      "author": "Vulpzin",
+      "version": "0.2.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "config"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [
+        "audio",
+        "midi",
+        "music"
+      ],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.jukebox-0.2.0-native.svplugin",
+        "sha256": "7c52e68ef993d7a344d784154d3d8d3076c92a0eaa34136ff5c9fdf1089e4c93",
+        "size": 112445
+      },
+      "thumbs": [],
+      "images": []
+    }
+  ]
+}
