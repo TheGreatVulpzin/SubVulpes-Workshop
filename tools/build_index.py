@@ -29,6 +29,9 @@ PICTURE_LIMIT = 2 * 1024 * 1024
 MAX_PICTURES = 8
 THUMB_WIDTH = 320
 STAMP = (2000, 1, 1, 0, 0, 0)
+CHANGELOG_MAX = 1200
+BREAKING_MAX = 300
+VERSIONS_MAX = 24
 
 
 class Refused(Exception):
@@ -64,6 +67,57 @@ def check_icon(data, where):
     size = png_size(data)
     if len(data) > 131072 or size is None or size[0] != size[1] or not 64 <= size[0] <= 512:
         raise Refused(f'{where}: the icon must be a square PNG from 64 to 512 pixels and at most 128 KiB.')
+
+
+def read_note(folder, name, limit, one_line):
+    """The text of changelog.txt or breaking.txt in a plugin folder. A text over the limit is refused, not cut."""
+    path = folder / name
+    if not path.is_file():
+        return ''
+    text = path.read_text(encoding='utf-8').replace('\r\n', '\n').strip()
+    if len(text) > limit:
+        raise Refused(f'{path}: at most {limit} characters.')
+    if one_line and '\n' in text:
+        raise Refused(f'{path}: one line only.')
+    return text
+
+
+def version_key(version):
+    """Sort key for a plugin version such as 0.3.0 or 0.3.0-rc.1. A candidate comes before its release."""
+    core, _, suffix = version.partition('-')
+    numbers = tuple(int(n) if n.isdigit() else 0 for n in core.split('.'))
+    return (numbers, 1 if not suffix else 0, suffix)
+
+
+def version_item(entry):
+    """The item of the list `versions` that describes the top level of an entry."""
+    item = {'version': entry['version'], 'file': entry['package']['file'], 'sha256': entry['package']['sha256'],
+            'size': entry['package']['size'], 'min_api': entry['min_api'], 'channel': entry['channel']}
+    for key in ('server_min', 'changelog', 'breaking', 'capabilities', 'runtime'):
+        if entry.get(key):
+            item[key] = entry[key]
+    return item
+
+
+def older_versions(entry, previous, out):
+    """The versions of the last published index, with their packages. A package whose hash is wrong is left out."""
+    before = next((p for p in previous.get('plugins', []) if p.get('id') == entry['id']), None)
+    if before is None:
+        return []
+    items = before.get('versions') or [version_item(before)]
+    kept = []
+    for item in items:
+        if item.get('version') == entry['version'] or not str(item.get('file', '')).startswith('packages/'):
+            continue
+        source = previous['_root'] / item['file']
+        if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != item.get('sha256'):
+            print(f'WARNING: the old package {item.get("file")} is missing or wrong. It is left out.', file=sys.stderr)
+            continue
+        target = out / item['file']
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        kept.append(item)
+    return kept
 
 
 def needs_of(text):
@@ -183,6 +237,10 @@ def build_entry(seal, folder, values, out, server_exe):
         'thumbs': [],
         'images': [],
     }
+    for key, name, limit, one_line in (('changelog', 'changelog.txt', CHANGELOG_MAX, False), ('breaking', 'breaking.txt', BREAKING_MAX, True)):
+        note = read_note(folder, name, limit, one_line)
+        if note:
+            entry[key] = note
     if values.get('homepage'):
         entry['homepage'] = values['homepage']
     if values.get('server_min'):
@@ -222,7 +280,7 @@ def content_folders(root):
     return found
 
 
-def build(root, out, server_exe=None, generated=None):
+def build(root, out, server_exe=None, generated=None, previous=None):
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -234,11 +292,26 @@ def build(root, out, server_exe=None, generated=None):
         seen.add(values['id'])
         entries.append(build_entry(seal, folder, values, out, server_exe))
     entries.sort(key=lambda e: e['id'])
+    # The list of versions: this build first, then the versions of the last published index, newest first.
+    for entry in entries:
+        items = [version_item(entry)] + (older_versions(entry, previous, out) if previous else [])
+        items.sort(key=lambda item: version_key(item['version']), reverse=True)
+        entry['versions'] = items[:VERSIONS_MAX]
     stamp = generated or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     index = {'format': 1, 'generated': stamp, 'plugins': entries}
     # A fixed layout keeps the bytes the same for the same content, so the signature stays checkable.
     (out / 'index.json').write_text(json.dumps(index, indent=2, ensure_ascii=True) + '\n', encoding='ascii', newline='\n')
     return index
+
+
+def load_previous(folder):
+    """The last published index, or nothing when there is none yet."""
+    path = folder / 'index.json'
+    if not path.is_file():
+        return None
+    data = json.loads(path.read_text(encoding='ascii'))
+    data['_root'] = folder
+    return data
 
 
 def main():
@@ -247,10 +320,12 @@ def main():
     parser.add_argument('--out', default='dist')
     parser.add_argument('--server-exe')
     parser.add_argument('--generated')
+    parser.add_argument('--previous', help='A folder with the last published index.json and packages.')
     args = parser.parse_args()
     try:
         index = build(Path(args.root).resolve(), Path(args.out).resolve(),
-                      Path(args.server_exe).resolve() if args.server_exe else None, args.generated)
+                      Path(args.server_exe).resolve() if args.server_exe else None, args.generated,
+                      load_previous(Path(args.previous).resolve()) if args.previous else None)
     except Refused as error:
         print(f'REFUSED: {error}', file=sys.stderr)
         return 1

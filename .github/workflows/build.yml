@@ -77,9 +77,15 @@ jobs:
         shell: bash
         run: pip install --quiet pillow==11.0.0
 
+      - name: Get the last published build
+        shell: bash
+        run: |
+          # The old packages stay in the index, so a user can go back. The first build has no branch dist yet.
+          git clone --quiet --depth 1 --branch dist "https://github.com/${GITHUB_REPOSITORY}.git" previous || mkdir previous
+
       - name: Build the packages and the index
         shell: bash
-        run: python -I tools/build_index.py --out dist --server-exe "$SERVER_EXE"
+        run: python -I tools/build_index.py --out dist --server-exe "$SERVER_EXE" --previous previous
 
       - name: Sign the index
         if: github.event_name != 'pull_request'
