@@ -1,4 +1,5 @@
 # Build outputs and downloads. The Action makes them. They never enter the repository.
+build/
 dist/
 server/
 server-zip/

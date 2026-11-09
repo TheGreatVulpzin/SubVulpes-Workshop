@@ -65,6 +65,14 @@ jobs:
             }
           }
 
+      - name: Test the official plugins
+        shell: pwsh
+        run: |
+          # The official plugins keep their tests beside their source. The runner and the probe plugin come from the SDK.
+          . (Join-Path $PWD 'tools/vcvars.ps1')
+          & (Join-Path $PWD 'tools/run_plugin_tests.ps1')
+          if ($LASTEXITCODE) { throw 'The plugin tests failed.' }
+
       - name: Install Pillow for thumbnails
         shell: bash
         run: pip install --quiet pillow==11.0.0

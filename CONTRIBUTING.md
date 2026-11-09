@@ -14,6 +14,20 @@ Content enters this repository by a pull request. The rules below are the first 
 
 The manifest format is in the main repository: `docs/plugin-manifest.md`.
 
+## The official plugins
+
+The source and the tests of the official plugins live in `official/plugins/<id>/`. Code that several of them share is in `official/common/`.
+The server repository (`TheGreatVulpzin/SubVulpes`) keeps the core, the public headers and the SDK.
+
+To build and test them on your computer:
+
+1. Download the SDK of a server release, or make one from a server build with `tools\sdk\make_sdk.ps1`. Unzip it.
+2. Set `SUBVULPES_SDK` to the folder inside it, and load the 32-bit tools: `. tools/vcvars.ps1`.
+3. Run `tools\run_plugin_tests.ps1`. It builds every plugin, then runs the native tests and the scenarios of the plugins named by `-Only`, or of all of them.
+
+A change of the plugin API needs a pull request in each repository. Merge the server first and release it. The plugin pull request comes after it, because this Action builds with the newest server release.
+The same rule holds for a new key of the manifest.
+
 ## Rules
 
 - A native plugin of the community enters only after a person reads its C code.
