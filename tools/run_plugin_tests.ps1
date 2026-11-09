@@ -20,7 +20,7 @@ Copy-Item -LiteralPath (Join-Path $env:SUBVULPES_SDK 'tools\subvulpes_plugin_tes
 Copy-Item -LiteralPath (Join-Path $env:SUBVULPES_SDK 'tools\probe') -Destination (Join-Path $stage 'plugins\sv.probe') -Recurse
 
 $folders = @(Get-ChildItem (Join-Path $repo 'official\plugins') -Directory | Where-Object { (Test-Path (Join-Path $_.FullName 'plugin.ini')) -and (Test-Path (Join-Path $_.FullName 'CMakeLists.txt')) })
-$selected = if ($Only.Count) { @($folders | Where-Object { $Only -contains $_.Name }) } else { $folders }
+$selected = @(if ($Only.Count) { $folders | Where-Object { $Only -contains $_.Name } } else { $folders })
 if (-not $selected.Count) { throw 'No plugin folder selected.' }
 
 # Build all of them. A test may use several plugins together. -Only selects which ones are tested.
