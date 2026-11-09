@@ -20,9 +20,11 @@ expected = [(0, 0, 1, 60, 39, 1.0), (0, 0, 10, 36, 21, 0.25),
             (0, 15, 1, 64, 39, 1.25992105), (0, 30, 1, 67, 39, 1.49830708),
             (0, 30, 10, 42, 21, 2.0), (0, 45, 1, 72, 39, 2.0)]
 pattern = re.compile(r'^\[sv\.jukebox\] JUKEBOX_SOUND tick=(\d+) at=(\d+) ch=(\d+) note=(\d+) sound=(\d+) pitch=([0-9.]+)', re.M)
+# Windows PowerShell 5.1 fails to find its own commands when it starts inside PowerShell 7 and inherits its module path.
+env = {k: v for k, v in os.environ.items() if k.upper() != 'PSMODULEPATH'}
 previous = None
 for _ in range(2):
-    result = subprocess.run(command, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=120, env=env)
     assert result.returncode == 0 and 'PASS jukebox-demo.svtest' in result.stdout, result.stdout + result.stderr
     actual = [tuple(map(int, row[:5])) + (float(row[5]),) for row in pattern.findall(result.stdout)]
     assert len(actual) == len(expected), (actual, result.stdout)
