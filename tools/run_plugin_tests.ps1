@@ -19,11 +19,11 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'plugins'), (Join-Path $sta
 Copy-Item -LiteralPath (Join-Path $env:SUBVULPES_SDK 'tools\subvulpes_plugin_test.exe') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $env:SUBVULPES_SDK 'tools\probe') -Destination (Join-Path $stage 'plugins\sv.probe') -Recurse
 
-$folders = @(Get-ChildItem (Join-Path $repo 'official\plugins') -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'plugin.ini') })
-if ($Only.Count) { $folders = @($folders | Where-Object { $Only -contains $_.Name }) }
-if (-not $folders.Count) { throw 'No plugin folder selected.' }
+$folders = @(Get-ChildItem (Join-Path $repo 'official\plugins') -Directory | Where-Object { (Test-Path (Join-Path $_.FullName 'plugin.ini')) -and (Test-Path (Join-Path $_.FullName 'CMakeLists.txt')) })
+$selected = if ($Only.Count) { @($folders | Where-Object { $Only -contains $_.Name }) } else { $folders }
+if (-not $selected.Count) { throw 'No plugin folder selected.' }
 
-# Build all first. A test may use several plugins together.
+# Build all of them. A test may use several plugins together. -Only selects which ones are tested.
 foreach ($folder in $folders) {
     Write-Output "== Build $($folder.Name)"
     & (Join-Path $PSScriptRoot 'build_plugin.ps1') -Folder $folder.FullName -All
@@ -34,7 +34,7 @@ foreach ($folder in $folders) {
 }
 
 $failed = @()
-foreach ($folder in $folders) {
+foreach ($folder in $selected) {
     Get-ChildItem (Join-Path $repo "build\$($folder.Name)") -Filter '*-test.exe' -File | ForEach-Object {
         Write-Output "== $($folder.Name): $($_.Name)"
         & $_.FullName
