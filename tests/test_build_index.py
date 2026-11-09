@@ -179,6 +179,45 @@ class BuildIndexTests(unittest.TestCase):
         (self.root / 'community' / 'plugins' / 'stray.txt').write_text('x')
         self.refused('only folders')
 
+    def test_notes_are_read_and_limited(self):
+        folder = plugin(self.root, 'official', 'sv.one')
+        (folder / 'changelog.txt').write_text('Line one.\r\nLine two.\n', encoding='ascii', newline='')
+        (folder / 'breaking.txt').write_text('Old settings reset.', encoding='ascii')
+        entry = self.build()['plugins'][0]
+        self.assertEqual(entry['changelog'], 'Line one.\nLine two.')
+        self.assertEqual(entry['breaking'], 'Old settings reset.')
+        self.assertEqual(entry['versions'][0]['breaking'], 'Old settings reset.')
+        (folder / 'breaking.txt').write_text('two\nlines', encoding='ascii')
+        self.refused('one line only')
+        (folder / 'breaking.txt').write_text('x' * 301, encoding='ascii')
+        self.refused('at most 300')
+        (folder / 'breaking.txt').unlink()
+        (folder / 'changelog.txt').write_text('x' * 1201, encoding='ascii')
+        self.refused('at most 1200')
+
+    def test_old_versions_stay_in_the_index(self):
+        folder = plugin(self.root, 'official', 'sv.one', 'capabilities=read\n')
+        first = self.build()['plugins'][0]
+        self.assertEqual([v['version'] for v in first['versions']], ['0.1.0'])
+        previous = self.root / 'previous'
+        shutil.copytree(self.out, previous)
+        ini = (folder / 'plugin.ini').read_text(encoding='ascii').replace('version=0.1.0', 'version=0.2.0')
+        (folder / 'plugin.ini').write_text(ini, encoding='ascii')
+        second = self.build(previous=build_index.load_previous(previous))['plugins'][0]
+        self.assertEqual([v['version'] for v in second['versions']], ['0.2.0', '0.1.0'])
+        old = second['versions'][1]
+        self.assertEqual(old['capabilities'], ['read'])
+        self.assertEqual(hashlib.sha256((self.out / old['file']).read_bytes()).hexdigest(), old['sha256'])
+        # A package whose hash is wrong is left out.
+        (previous / old['file']).write_bytes(b'broken')
+        third = self.build(previous=build_index.load_previous(previous))['plugins'][0]
+        self.assertEqual([v['version'] for v in third['versions']], ['0.2.0'])
+
+    def test_version_order(self):
+        keys = ['0.2.9', '0.3.0-rc.1', '0.3.0', '0.10.0']
+        keys.sort(key=build_index.version_key, reverse=True)
+        self.assertEqual(keys, ['0.10.0', '0.3.0', '0.3.0-rc.1', '0.2.9'])
+
     def test_signature_with_openssl(self):
         """The documented signing step: an RSA key, a SHA-256 signature, and a check with the public key."""
         if not shutil.which('openssl'):
