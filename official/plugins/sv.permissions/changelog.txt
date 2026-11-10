@@ -1,0 +1,1 @@
+Groups of players, permission nodes and the password login policy. Nothing new in this release.
