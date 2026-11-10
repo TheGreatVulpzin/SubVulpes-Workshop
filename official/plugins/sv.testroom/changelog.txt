@@ -1,0 +1,2 @@
+Test cases that run inside the game. Start them with /test start.
+This version adds more cases for the plugin API: reads, AI, economy, missions, shops, settings and sounds.
