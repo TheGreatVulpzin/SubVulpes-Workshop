@@ -2163,6 +2163,40 @@ static SvResult t_admin_car(void)
     return SV_OK;
 }
 
+static SvResult t_chase(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvEntity car = 0, driver = 0, driver_human = 0;
+    SvResult r = ai ? body(&player, &human) : SV_INCOMPATIBLE;
+    if (r == SV_OK)
+        r = change->object_create(self, 0, beside(&human, 14.0f, 1.0f, 0.0f), 0.0f, 1, &car);
+    if (r == SV_OK) {
+        remember(made_objects, &made_object_count, 6, car);
+        r = make_bot(beside(&human, 14.0f, 1.0f, 3.0f), "Driver", &driver, &driver_human);
+    }
+    if (r == SV_OK)
+        r = change->vehicle_enter(self, driver_human, car, 0);
+    if (r != SV_OK)
+        return r;
+    last_npc = driver;
+    touched |= T_AI;
+    r = ai->target(self, driver, player.human);
+    if (r == SV_OK)
+        r = ai->chase_mode(self, driver, 1);
+    if (r == SV_OK)
+        say("The bot drives a car and chases you. Type /test go to switch chase mode off.");
+    return r;
+}
+
+static SvResult t_chase_go(void)
+{
+    SvResult r = ai ? ai->chase_mode(self, last_npc, 0) : SV_INCOMPATIBLE;
+    if (r == SV_OK)
+        say("Chase mode is off. The bot drives as before.");
+    return r;
+}
+
 static const Test tests[] = {
     { "chat_all", "Sends one message to every client.", "The line 'TEST: every player sees this line.' appears in the chat.", t_chat_all, NULL },
     { "chat_private", "Sends a message to you only.", "You see the line. Other players would not.", t_chat_private, NULL },
@@ -2245,6 +2279,7 @@ static const Test tests[] = {
     { "bot_policies", "Makes a bot and switches aim snap on and off, then asks for chase mode.", "Aim snap works. Chase mode says state, because the bot has no car.", t_bot_policies, NULL },
     { "possess", "Makes a bot and gives you its body.", "You control the bot. Your old body stays standing. Type /test stop to end it.", t_possess, NULL },
     { "block_set", "Sets one solid block in an empty cell above you. Type /test go to clear it.", "The API reports the block set and then clear. Say yes or no if you also see or feel the block.", t_block_set, t_block_set_go },
+    { "chase_mode", "Makes a car with a bot driver and switches chase mode on. Type /test go to switch it off.", "The car drives at you and tries to hit you. After a go it drives as a normal bot car. Say no if it does not chase.", t_chase, t_chase_go },
     { "admin_arm", "Guides you through /arm with a name and with a number, and /names.", "An Uzi lands in your hand each time. /names lists the weapons.", t_admin_arm, NULL },
     { "admin_car", "Guides you through /car with color, distance, yaw and enter.", "The car has color 3, stands 10 units away, turns 90 degrees, and you can sit in it.", t_admin_car, NULL },
 };
