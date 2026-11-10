@@ -171,7 +171,7 @@ static SvResult do_ban(SvEntity actor, char *arguments)
     if (result != SV_OK) return result;
     if (protected_player(actor, &target)) return SV_DENIED;
     ban.account = of_account(&api, &target);
-    if (of_int(&api, "ban_address", 0) && api.read->connection(api.owner, target.entity, &connection) == SV_OK) {
+    if (of_int(&api, "ban_address", 1) && api.read->connection(api.owner, target.entity, &connection) == SV_OK) {
         ban.has_address = 1;
         memcpy(ban.address, connection.ip, 4);
     }
