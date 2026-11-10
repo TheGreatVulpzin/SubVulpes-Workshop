@@ -22,9 +22,9 @@
 #include "sv_config.h"
 #include "sv_plugins_api.h"
 
-#define VERSION "0.2.18"
+#define VERSION "0.3.0"
 #define LINE_MAX_CHARS 60
-#define MAX_TESTS 72
+#define MAX_TESTS 96
 
 static const SvHost *host;
 static SvOwner self;
@@ -1877,6 +1877,179 @@ static SvResult t_login_deny(void)
     return host->subscribe(self, EVENTS_BASE | SV_EVENT_EXT_BIT(3), on_event);
 }
 
+/* ------------------------------------------------------------ newer API */
+
+static SvResult t_level_buildings(void)
+{
+    SvBuildingState first = { sizeof first }, base = { sizeof base };
+    uint32_t count = 0, team, bases = 0;
+    SvResult r = game->building_count(self, &count);
+    if (r == SV_OK && count > 0)
+        r = game->building(self, 0, &first);
+    if (r != SV_OK)
+        return r;
+    for (team = 0; team < SV_BASE_COUNT; ++team) {
+        base.size = sizeof base;
+        if (game->base(self, team, &base) == SV_OK)
+            ++bases;
+    }
+    sayf("The level has %u buildings and %u bases.", count, bases);
+    if (count > 0)
+        sayf("Building 0: kind %u, at %.0f %.0f %.0f.", first.kind, first.position.x, first.position.y, first.position.z);
+    return count > 0 && bases > 0 ? SV_OK : SV_FAILED;
+}
+
+static SvResult t_level_blocks(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvAreaState area = { sizeof area };
+    SvBlockState block = { sizeof block };
+    SvSurfaceHit hit = { sizeof hit };
+    SvResult r = body(&player, &human);
+    if (r == SV_OK)
+        r = game->area(self, 0, &area);
+    if (r == SV_OK)
+        r = game->block(self, 0, 0, 0, 0, &block);
+    if (r != SV_OK)
+        return r;
+    sayf("Area 0: %d x %d x %d blocks of %.1f. Block 0 0 0 has word %u.", area.blocks_x, area.blocks_y, area.blocks_z,
+        area.block_size, block.word);
+    r = game->surface(self, offset(human.position, 0.0f, 6.0f, 0.0f), offset(human.position, 0.0f, -6.0f, 0.0f), &hit);
+    if (r == SV_OK)
+        sayf("The surface under you has material %d (-1 is unknown) in area %d.", hit.material, hit.area);
+    return r;
+}
+
+static SvResult t_street_map(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvAiRoad road = { sizeof road };
+    SvAiIntersection crossing = { sizeof crossing };
+    SvAiStreetPosition near_street = { sizeof near_street };
+    SvResult r = ai ? body(&player, &human) : SV_INCOMPATIBLE, found;
+    if (r == SV_OK)
+        r = ai->road(self, 0, &road);
+    if (r == SV_OK)
+        r = ai->intersection(self, 0, &crossing);
+    if (r != SV_OK)
+        return r;
+    found = ai->street_near(self, human.position, 200.0f, &near_street);
+    sayf("The street map has %u roads and %u intersections.", road.count, crossing.count);
+    if (found == SV_OK)
+        sayf("The nearest street point is on road %u, next node %u.", near_street.point.road, near_street.next_node);
+    else
+        sayf("No street point within 200 units (result %d).", (int)found);
+    return road.count > 0 && crossing.count > 0 ? SV_OK : SV_FAILED;
+}
+
+static SvResult t_account_number(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    uint32_t number = 0;
+    SvResult r = body(&player, &human);
+    if (r == SV_OK)
+        r = game->account_number(self, player.account, &number);
+    if (r == SV_OK)
+        sayf("Your account number is %u. Type /players to compare.", number);
+    return r;
+}
+
+static SvResult t_health_1000(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvValue value = { 0 };
+    SvResult r = body(&player, &human);
+    if (r != SV_OK)
+        return r;
+    touched |= T_HEALTH;
+    r = set_int("human.health", player.human, 1000);
+    if (r == SV_OK)
+        r = props->get(self, prop_id("human.health"), player.human, 0, &value);
+    if (r == SV_OK)
+        sayf("Health reads %d. The next test sets it back to 100.", (int)value.i);
+    return r == SV_OK && value.i == 1000 ? SV_OK : SV_FAILED;
+}
+
+static SvResult t_trigger_ticks(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvEntity item = 0;
+    SvValue saved = { 0 }, value = { 0 }, back = { 0 };
+    uint32_t id = prop_id("item.trigger_ticks");
+    SvResult r = body(&player, &human), restored;
+    if (r == SV_OK)
+        r = change->item_create(self, 12, human.position, &item);
+    if (r != SV_OK)
+        return r;
+    remember(made_items, &made_item_count, 8, item);
+    r = props->get(self, id, item, 0, &saved);
+    value.i = 100;
+    if (r == SV_OK)
+        r = props->set(self, id, item, 0, value);
+    if (r == SV_OK)
+        r = props->get(self, id, item, 0, &back);
+    restored = props->set(self, id, item, 0, saved);
+    if (r != SV_OK || restored != SV_OK || back.i != 100)
+        return SV_FAILED;
+    sayf("Trigger ticks were %d, read back %d, and are restored.", (int)saved.i, (int)back.i);
+    return SV_OK;
+}
+
+static SvResult t_remove_bot_body(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvEntity bot = 0, bot_human = 0;
+    SvResult r = body(&player, &human), removed;
+    if (r == SV_OK)
+        r = make_bot(beside(&human, 4.0f, 0.5f, 0.0f), "Guard", &bot, &bot_human);
+    if (r != SV_OK)
+        return r;
+    removed = change->human_remove(self, bot_human);
+    sayf("human_remove on a bot gave %d (want %d, denied).", (int)removed, (int)SV_DENIED);
+    return removed == SV_DENIED ? SV_OK : SV_FAILED;
+}
+
+static SvResult t_bot_policies(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvEntity bot = 0, bot_human = 0;
+    SvResult r = ai ? body(&player, &human) : SV_INCOMPATIBLE, snap_on, snap_off, chase;
+    if (r == SV_OK)
+        r = make_bot(beside(&human, 4.0f, 0.5f, 0.0f), "Guard", &bot, &bot_human);
+    if (r != SV_OK)
+        return r;
+    touched |= T_AI;
+    snap_on = ai->aim_snap(self, bot, 1);
+    snap_off = ai->aim_snap(self, bot, 0);
+    chase = ai->chase_mode(self, bot, 1);
+    sayf("aim_snap on %d, off %d (want %d). chase_mode without a car %d (want %d).", (int)snap_on, (int)snap_off, (int)SV_OK,
+        (int)chase, (int)SV_STATE);
+    return snap_on == SV_OK && snap_off == SV_OK && chase == SV_STATE ? SV_OK : SV_FAILED;
+}
+
+static SvResult t_possess(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvResult r = ai ? t_npc() : SV_INCOMPATIBLE;
+    if (r == SV_OK)
+        r = body(&player, &human);
+    if (r != SV_OK)
+        return r;
+    touched |= T_AI;
+    r = ai->possess(self, player.entity, last_npc);
+    if (r == SV_OK)
+        say("You now own the body of the bot. Type /test stop to get yours back.");
+    return r;
+}
+
 static const Test tests[] = {
     { "chat_all", "Sends one message to every client.", "The line 'TEST: every player sees this line.' appears in the chat.", t_chat_all, NULL },
     { "chat_private", "Sends a message to you only.", "You see the line. Other players would not.", t_chat_private, NULL },
@@ -1949,6 +2122,15 @@ static const Test tests[] = {
     { "kicked_count", "Reads the core kick list count.", "A count appears in private chat.", t_kicked_count, NULL },
     { "core_command", "Denies the probe command through N56.", "The probe event appears in private chat.", t_core_command, NULL },
     { "login_deny", "Denies a password attempt through N57.", "The login denial appears in private chat.", t_login_deny, NULL },
+    { "level_buildings", "Reads the buildings and the bases of the level.", "The building count and the base count are above 0.", t_level_buildings, NULL },
+    { "level_blocks", "Reads area 0, one block of it, and the surface under you.", "The area size shows, and the surface material is a number.", t_level_blocks, NULL },
+    { "street_map", "Reads the first road, the first intersection and the nearest street point.", "The road and intersection counts are above 0.", t_street_map, NULL },
+    { "account_number", "Reads the number of your account.", "The number matches your line in /players.", t_account_number, NULL },
+    { "health_1000", "Sets your health to 1000 and reads it back.", "The read value is 1000. The next test sets it back to 100.", t_health_1000, NULL },
+    { "trigger_ticks", "Makes a bandage and writes, reads and restores its trigger ticks.", "The value read back is 100.", t_trigger_ticks, NULL },
+    { "remove_bot_body", "Makes a bot and asks to remove its body.", "The call is denied, because bots use npc_remove.", t_remove_bot_body, NULL },
+    { "bot_policies", "Makes a bot and switches aim snap on and off, then asks for chase mode.", "Aim snap works. Chase mode says state, because the bot has no car.", t_bot_policies, NULL },
+    { "possess", "Makes a bot and gives you its body.", "You control the bot. Your old body stays standing. Type /test stop to end it.", t_possess, NULL },
 };
 
 /* ------------------------------------------------------------ flow */
