@@ -1,0 +1,1 @@
+First version. Help topics and text pages for the commands of all plugins. It gives /help and /page.

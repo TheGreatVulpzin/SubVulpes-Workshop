@@ -1,0 +1,5 @@
+Names work in place of numbers: /arm uzi works as /arm 5. The new /names command lists them.
+/car takes color=, enter, dist= and yaw=.
+Answers say in plain words what happened. The target gets a notice. The setting notify_target turns it off (on by default).
+A weapon goes to the other hand or to the inventory when the hand is full. Magazines go to the pockets.
+Failed and dangerous commands go to the Aya log.

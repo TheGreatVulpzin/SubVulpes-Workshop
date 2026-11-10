@@ -1,0 +1,1 @@
+First version. One fixed log line for each action of an administrator, for other plugins to call. It gives /logs and the node logging.view.
