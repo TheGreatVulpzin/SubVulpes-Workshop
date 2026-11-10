@@ -1,1 +1,3 @@
-Groups of players, permission nodes and the password login policy. Nothing new in this release.
+Edit groups in a text file. /group export writes user/plugins/sv.permissions.groups.ini. /group reload reads it back.
+A file with an error changes nothing, and the answer says the line.
+Only the owner group can reload. Group assignments to players still use /perm set.
