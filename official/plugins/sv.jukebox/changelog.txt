@@ -1,0 +1,2 @@
+Plays MIDI files with any game sound, from the console of the server.
+Uses the sound table and the instrument table of the plugin.
