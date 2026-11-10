@@ -1,0 +1,6 @@
+First version. Bans last after a restart.
+/ban PLAYER [TIME] [REASON] bans the account. TIME is 30m, 12h, 7d, 2w or perm.
+/unban N, /bans [PAGE] and /baninfo N manage the list.
+/kick PLAYER [REASON] disconnects a player. The player can join again.
+A banned account cannot join. The setting ban_address also refuses the address (off by default).
+Every ban, unban and kick goes to the Aya log.
