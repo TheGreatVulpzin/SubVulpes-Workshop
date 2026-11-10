@@ -2148,6 +2148,21 @@ static SvResult t_block_set_go(void)
     return SV_OK;
 }
 
+/* The admin commands run in the console, and the console does not nest inside /test. These cases guide the user. */
+static SvResult t_admin_arm(void)
+{
+    say("Type these, one at a time: /arm uzi, then /arm 5, then /names.");
+    say("Then type /test yes if every /arm put an Uzi in your hand and /names listed the weapon names.");
+    return SV_OK;
+}
+
+static SvResult t_admin_car(void)
+{
+    say("Type: /car color=3 dist=10 yaw=90, then /car enter.");
+    say("Then type /test yes if a color 3 car stands 10 units away, turned 90 degrees, and you sit in the second one.");
+    return SV_OK;
+}
+
 static const Test tests[] = {
     { "chat_all", "Sends one message to every client.", "The line 'TEST: every player sees this line.' appears in the chat.", t_chat_all, NULL },
     { "chat_private", "Sends a message to you only.", "You see the line. Other players would not.", t_chat_private, NULL },
@@ -2230,6 +2245,8 @@ static const Test tests[] = {
     { "bot_policies", "Makes a bot and switches aim snap on and off, then asks for chase mode.", "Aim snap works. Chase mode says state, because the bot has no car.", t_bot_policies, NULL },
     { "possess", "Makes a bot and gives you its body.", "You control the bot. Your old body stays standing. Type /test stop to end it.", t_possess, NULL },
     { "block_set", "Sets one solid block in an empty cell above you. Type /test go to clear it.", "The API reports the block set and then clear. Say yes or no if you also see or feel the block.", t_block_set, t_block_set_go },
+    { "admin_arm", "Guides you through /arm with a name and with a number, and /names.", "An Uzi lands in your hand each time. /names lists the weapons.", t_admin_arm, NULL },
+    { "admin_car", "Guides you through /car with color, distance, yaw and enter.", "The car has color 3, stands 10 units away, turns 90 degrees, and you can sit in it.", t_admin_car, NULL },
 };
 
 /* ------------------------------------------------------------ flow */
