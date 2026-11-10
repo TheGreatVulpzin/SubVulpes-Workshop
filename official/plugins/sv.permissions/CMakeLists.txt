@@ -14,7 +14,7 @@ include("${SV_SDK_ROOT}/tools/sv_plugin.cmake")
 
 set(COMMON "${CMAKE_CURRENT_SOURCE_DIR}/../../common")
 sv_add_plugin(sv-permissions ID sv.permissions MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/plugin.ini"
-    SOURCES permissions.c groups.c "${COMMON}/official.c" OFFICIAL)
+    SOURCES permissions.c groups.c groups_text.c "${COMMON}/official.c" OFFICIAL)
 
 # Tests: a plugin that uses the service, and a native test of the group rules.
 sv_add_plugin(sv-permission-probe ID test.permissions
@@ -24,3 +24,8 @@ add_executable(permission-groups-test tests/permission_groups_test.c groups.c "$
 target_include_directories(permission-groups-test PRIVATE "${SV_PLUGIN_INCLUDE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_definitions(permission-groups-test PRIVATE _CRT_SECURE_NO_WARNINGS)
 target_compile_options(permission-groups-test PRIVATE /W4 /WX /utf-8)
+
+add_executable(permission-text-test tests/permission_text_test.c groups_text.c groups.c)
+target_include_directories(permission-text-test PRIVATE "${SV_PLUGIN_INCLUDE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_definitions(permission-text-test PRIVATE _CRT_SECURE_NO_WARNINGS)
+target_compile_options(permission-text-test PRIVATE /W4 /WX /utf-8)

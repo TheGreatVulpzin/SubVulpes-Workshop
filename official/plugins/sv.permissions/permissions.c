@@ -1,5 +1,6 @@
 #include "../../common/official.h"
 #include "groups.h"
+#include "groups_text.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -393,6 +394,60 @@ static int editable(SvEntity actor, const PmGroup *group)
     return 1;
 }
 
+#define GROUPS_FILE "user/plugins/sv.permissions.groups.ini"
+
+/* /group export writes the groups to a text file that people can edit. */
+static void export_groups(SvEntity actor)
+{
+    static char text[PM_TEXT_MAX];
+    size_t length;
+    FILE *file;
+    int good;
+    if (!permitted(actor, "permissions.view")) return;
+    length = pm_to_text(&groups, text, sizeof text);
+    file = length ? fopen(GROUPS_FILE, "wb") : NULL;
+    good = file && fwrite(text, 1, length, file) == length;
+    if (file && fclose(file) != 0) good = 0;
+    if (good) of_tell(&api, actor, "Groups written to %s. Edit it, then type /group reload.", GROUPS_FILE);
+    else of_tell(&api, actor, "Cannot write %s. Check that the folder user/plugins exists.", GROUPS_FILE);
+}
+
+/* /group reload replaces all groups with the text file. Nothing changes when the file has an error. */
+static void reload_groups(SvEntity actor)
+{
+    static char text[PM_TEXT_MAX + 1], error[200];
+    static PmGroups candidate;
+    FILE *file;
+    size_t length;
+    uint32_t i;
+    SvResult result = SV_OK;
+    if (!permitted(actor, "permissions.group")) return;
+    if (!is_owner(actor)) { of_tell(&api, actor, "Only the owner group can reload the groups."); return; }
+    file = fopen(GROUPS_FILE, "rb");
+    if (!file) { of_tell(&api, actor, "Cannot open %s. Type /group export first.", GROUPS_FILE); return; }
+    length = fread(text, 1, PM_TEXT_MAX + 1, file);
+    fclose(file);
+    if (length > PM_TEXT_MAX) { of_tell(&api, actor, "The groups file is too big (the limit is %u bytes).", PM_TEXT_MAX); return; }
+    text[length] = 0;
+    if (strlen(text) != length) { of_tell(&api, actor, "The groups file has a zero byte. Save it as plain text."); return; }
+    if (!pm_from_text(text, &candidate, error, sizeof error)) {
+        of_tell(&api, actor, "Groups file refused, nothing changed. %s", error);
+        return;
+    }
+    for (i = 0; result == SV_OK && i < candidate.count; ++i) result = save_group(&candidate.group[i]);
+    if (result == SV_OK) result = save_index(&candidate);
+    if (result != SV_OK) { of_tell(&api, actor, "The groups could not be saved: %d.", result); loaded = 0; return; }
+    for (i = 0; i < groups.count; ++i)
+        if (pm_find(&candidate, groups.group[i].name) < 0) {
+            char key[SV_STORAGE_KEY_SIZE];
+            snprintf(key, sizeof key, "g.%s", groups.group[i].name);
+            of_erase(&api, SV_STORAGE_SERVER, 0, key);
+        }
+    groups = candidate;
+    refresh();
+    of_tell(&api, actor, "Groups reloaded: %u groups.", groups.count);
+}
+
 static SvResult SV_CALL group_command(SvOwner owner, uint64_t actor, const char *arguments)
 {
     char line[256], operation[64], name[64], value[64], *rest = line;
@@ -405,12 +460,14 @@ static SvResult SV_CALL group_command(SvOwner owner, uint64_t actor, const char 
     if (!ready(actor)) return SV_OK;
     if (strnlen(arguments, sizeof line) >= sizeof line) return SV_INVALID;
     strcpy(line, arguments);
-    if (of_token(&rest, operation, sizeof operation) != 1) { of_tell(&api, actor, "Use /group list, show, create, delete, allow, deny, remove, prefix or level."); return SV_OK; }
+    if (of_token(&rest, operation, sizeof operation) != 1) { of_tell(&api, actor, "Use /group list, show, create, delete, allow, deny, remove, prefix, level, export or reload."); return SV_OK; }
     if (!strcmp(operation, "list") && !*rest) {
         if (permitted(actor, "permissions.view"))
             for (i = 0; i < groups.count; ++i) of_tell(&api, actor, "%s level=%d", groups.group[i].name, groups.group[i].level);
         return SV_OK;
     }
+    if (!strcmp(operation, "export") && !*rest) { export_groups(actor); return SV_OK; }
+    if (!strcmp(operation, "reload") && !*rest) { reload_groups(actor); return SV_OK; }
     if (of_token(&rest, name, sizeof name) != 1 || !pm_name(name)) { of_tell(&api, actor, "Invalid group name."); return SV_OK; }
     index = pm_find(&groups, name);
     if (!strcmp(operation, "show") && index >= 0 && !*rest) {
