@@ -61,6 +61,9 @@ static SvEntity tester;
 static int current;
 static unsigned char result[MAX_TESTS + 1];
 static unsigned touched;
+static uint32_t block_area, block_material;
+static int32_t block_cell[3];
+static int block_placed;
 static int32_t saved_looks[SV_LOOK_COUNT];
 static SvEntity made_objects[6], made_players[4], made_items[24];
 static int made_object_count, made_player_count, made_item_count;
@@ -253,6 +256,10 @@ static void cleanup(void)
     if (command_hook_test)
         host->subscribe(self, EVENTS_BASE, on_event);
     command_hook_test = 0;
+    if (block_placed) {
+        change->block_set(self, block_area, block_cell[0], block_cell[1], block_cell[2], SV_BLOCK_CLEAR, 0);
+        block_placed = 0;
+    }
     if ((touched & T_AI) && ai)
         ai->release(self, last_npc);
     if (touched & T_DEATH)
@@ -2050,6 +2057,97 @@ static SvResult t_possess(void)
     return r;
 }
 
+/* Finds the grid cell of a world point in the area that holds it. */
+static SvResult find_cell(SvVector at, uint32_t *area_out, int32_t cell[3])
+{
+    uint32_t a;
+    for (a = 0; a < SV_AREA_COUNT; ++a) {
+        SvAreaState area = { sizeof area };
+        float d[3], g[3];
+        int32_t size[3], k;
+        if (game->area(self, a, &area) != SV_OK || area.block_size <= 0.0f)
+            continue;
+        d[0] = at.x - area.origin.x;
+        d[1] = at.y - area.origin.y;
+        d[2] = at.z - area.origin.z;
+        size[0] = area.blocks_x;
+        size[1] = area.blocks_y;
+        size[2] = area.blocks_z;
+        for (k = 0; k < 3; ++k) {
+            g[k] = (d[0] * area.axes[k].x + d[1] * area.axes[k].y + d[2] * area.axes[k].z) / area.block_size;
+            cell[k] = (int32_t)floorf(g[k]);
+            if (cell[k] < 0 || cell[k] >= size[k])
+                break;
+        }
+        if (k == 3) {
+            *area_out = a;
+            return SV_OK;
+        }
+    }
+    return SV_NOT_FOUND;
+}
+
+static SvResult t_block_set(void)
+{
+    SvPlayerState player = { sizeof player };
+    SvHumanState human = { sizeof human };
+    SvBlockState state = { sizeof state };
+    SvSurfaceHit hit = { sizeof hit };
+    SvResult r = body(&player, &human);
+    int32_t up;
+    if (r == SV_OK)
+        r = find_cell(human.position, &block_area, block_cell);
+    if (r != SV_OK) {
+        say("You do not stand inside a block area. Go to a street or a building and try again.");
+        return SV_NOT_FOUND;
+    }
+    block_placed = 0;
+    for (up = 3; up < 14; ++up) {
+        int32_t y = block_cell[1] + up;
+        state.size = sizeof state;
+        if (game->block(self, block_area, block_cell[0], y, block_cell[2], &state) == SV_OK && state.word == 0) {
+            block_cell[1] = y;
+            break;
+        }
+    }
+    if (up == 14) {
+        say("No empty cell above you. Move to an open place and try again.");
+        return SV_NOT_FOUND;
+    }
+    block_material = 1;
+    if (game->surface(self, offset(human.position, 0.0f, 6.0f, 0.0f), offset(human.position, 0.0f, -6.0f, 0.0f), &hit) == SV_OK &&
+        hit.material >= 0)
+        block_material = (uint32_t)hit.material;
+    r = change->block_set(self, block_area, block_cell[0], block_cell[1], block_cell[2], SV_BLOCK_SOLID, block_material);
+    if (r != SV_OK)
+        return r;
+    state.size = sizeof state;
+    r = game->block(self, block_area, block_cell[0], block_cell[1], block_cell[2], &state);
+    if (r != SV_OK || state.word == 0)
+        return SV_FAILED;
+    block_placed = 1;
+    sayf("A solid block is set at area %u, cell %d %d %d (material %u). Look above you. Type /test go to clear it.",
+        block_area, block_cell[0], block_cell[1], block_cell[2], block_material);
+    return SV_OK;
+}
+
+static SvResult t_block_set_go(void)
+{
+    SvBlockState state = { sizeof state };
+    SvResult r;
+    if (!block_placed)
+        return SV_STATE;
+    r = change->block_set(self, block_area, block_cell[0], block_cell[1], block_cell[2], SV_BLOCK_CLEAR, 0);
+    if (r != SV_OK)
+        return r;
+    block_placed = 0;
+    r = game->block(self, block_area, block_cell[0], block_cell[1], block_cell[2], &state);
+    if (r != SV_OK || state.word != 0)
+        return SV_FAILED;
+    say("The block is clear again. The cell reads empty.");
+    return SV_OK;
+}
+
 static const Test tests[] = {
     { "chat_all", "Sends one message to every client.", "The line 'TEST: every player sees this line.' appears in the chat.", t_chat_all, NULL },
     { "chat_private", "Sends a message to you only.", "You see the line. Other players would not.", t_chat_private, NULL },
@@ -2131,6 +2229,7 @@ static const Test tests[] = {
     { "remove_bot_body", "Makes a bot and asks to remove its body.", "The call is denied, because bots use npc_remove.", t_remove_bot_body, NULL },
     { "bot_policies", "Makes a bot and switches aim snap on and off, then asks for chase mode.", "Aim snap works. Chase mode says state, because the bot has no car.", t_bot_policies, NULL },
     { "possess", "Makes a bot and gives you its body.", "You control the bot. Your old body stays standing. Type /test stop to end it.", t_possess, NULL },
+    { "block_set", "Sets one solid block in an empty cell above you. Type /test go to clear it.", "The API reports the block set and then clear. Say yes or no if you also see or feel the block.", t_block_set, t_block_set_go },
 };
 
 /* ------------------------------------------------------------ flow */
