@@ -1,7 +1,6 @@
-Bans also refuse the address of the player now. Turn it off with the setting ban_address. This changes a new install only.
-First version. Bans last after a restart.
+A player who is banned or kicked now sees a notice with the reason, then the connection ends a moment later.
+/ban acc:N bans an account by number, also when the player is offline. An offline ban needs the permission bans.offline.
+Bans also refuse the address of the player. Turn it off with the setting ban_address.
 /ban PLAYER [TIME] [REASON] bans the account. TIME is 30m, 12h, 7d, 2w or perm.
-/unban N, /bans [PAGE] and /baninfo N manage the list.
-/kick PLAYER [REASON] disconnects a player. The player can join again.
-A banned account cannot join. The setting ban_address also refuses the address (on by default).
+/unban N, /bans [PAGE] and /baninfo N manage the list. /kick PLAYER [REASON] disconnects a player, who can join again.
 Every ban, unban and kick goes to the Aya log.
