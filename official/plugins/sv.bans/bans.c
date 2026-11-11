@@ -124,9 +124,41 @@ static void cut_text(char *text, size_t capacity)
         if ((unsigned char)text[i] < 32 || (unsigned char)text[i] > 126) text[i] = '?';
 }
 
+/* A player who is banned or kicked gets a notice first. The connection ends a few updates later, so that the notice can reach
+ * the client. */
+typedef struct {
+    SvEntity player;
+    int ticks;
+} Pending;
+static Pending pending[16];
+
+static void notify_and_schedule(const SvPlayerState *target, const char *what, const char *reason)
+{
+    int i;
+    of_tell(&api, target->entity, "You were %s: %s.", what, reason && *reason ? reason : "no reason given");
+    for (i = 0; i < 16; ++i)
+        if (!pending[i].player) {
+            pending[i].player = target->entity;
+            pending[i].ticks = 3;
+            return;
+        }
+    disconnect(target);
+}
+
+static void run_pending(void)
+{
+    int i;
+    for (i = 0; i < 16; ++i) {
+        SvPlayerState player = { sizeof player };
+        if (!pending[i].player || --pending[i].ticks > 0) continue;
+        if (api.read->player(api.owner, pending[i].player, &player) == SV_OK) disconnect(&player);
+        pending[i].player = 0;
+    }
+}
+
 static SvResult do_kick(SvEntity actor, char *arguments)
 {
-    char name[64], reason[BAN_REASON], by[BAN_NAME];
+    char name[64], reason[BAN_REASON];
     char *rest = arguments;
     SvPlayerState target = { sizeof target };
     SvResult result;
@@ -136,9 +168,7 @@ static SvResult do_kick(SvEntity actor, char *arguments)
     result = of_target(&api, actor, name, &target);
     if (result != SV_OK) return result;
     if (protected_player(actor, &target)) return SV_DENIED;
-    result = disconnect(&target);
-    if (result != SV_OK) return result;
-    actor_name(actor, by, sizeof by);
+    notify_and_schedule(&target, "kicked", reason);
     announce("%s was kicked: %s.", target.name, reason);
     of_tell(&api, actor, "Kicked %s. The player can join again.", target.name);
     record("kick", actor, target.entity, SV_OK, reason[0] ? reason : NULL);
@@ -151,39 +181,39 @@ static int32_t default_days(void)
     return days < 0 ? 0 : days > BAN_DAYS_MAX ? BAN_DAYS_MAX : days;
 }
 
-static SvResult do_ban(SvEntity actor, char *arguments)
+/* The name of an account that may be offline, from its number. 1 when the account exists. */
+static int account_name(int32_t number, char *name, size_t capacity)
 {
-    char name[64], word[32];
-    char *rest = arguments, *after;
-    SvPlayerState target = { sizeof target };
-    SvConnectionState connection = { sizeof connection };
-    Ban ban;
-    uint32_t seconds = (uint32_t)default_days() * 86400u, now = clock_now();
+    SvEntity page[256];
+    uint32_t cursor = 0, count, next, i;
+    while (cursor < 65536) {
+        if (api.read->entities(api.owner, SV_ENTITY_ACCOUNT, cursor, page, 256, &count, &next) != SV_OK) return 0;
+        for (i = 0; i < count; ++i) {
+            uint32_t found = 0;
+            SvAccountState state = { sizeof state };
+            if (api.read->account_number(api.owner, page[i], &found) == SV_OK && (int32_t)found == number &&
+                api.read->account(api.owner, page[i], &state) == SV_OK) {
+                snprintf(name, capacity, "%s", state.name);
+                return 1;
+            }
+        }
+        if (next <= cursor) break;
+        cursor = next;
+    }
+    return 0;
+}
+
+/* Stores and announces a ban. The target is the online player to disconnect, or NULL for an account that is offline. */
+static SvResult apply_ban(SvEntity actor, const SvPlayerState *target, Ban *ban, uint32_t seconds)
+{
+    uint32_t now = clock_now();
     int slot;
     SvResult result;
-    if (of_token(&rest, name, sizeof name) != 1) return SV_INVALID;
-    after = rest;
-    if (of_token(&after, word, sizeof word) == 1 && ban_duration(word, &seconds)) rest = after;
-    memset(&ban, 0, sizeof ban);
-    snprintf(ban.reason, sizeof ban.reason, "%s", rest_of(rest));
-    cut_text(ban.reason, sizeof ban.reason);
-    result = of_target(&api, actor, name, &target);
-    if (result != SV_OK) return result;
-    if (protected_player(actor, &target)) return SV_DENIED;
-    ban.account = of_account(&api, &target);
-    if (of_int(&api, "ban_address", 1) && api.read->connection(api.owner, target.entity, &connection) == SV_OK) {
-        ban.has_address = 1;
-        memcpy(ban.address, connection.ip, 4);
-    }
-    if (ban.account < 0 && !ban.has_address) {
-        of_tell(&api, actor, "%s has no account, and address bans are off. Nothing to ban.", target.name);
-        return SV_DENIED;
-    }
-    snprintf(ban.name, sizeof ban.name, "%s", target.name);
-    actor_name(actor, ban.by, sizeof ban.by);
-    ban.created = now;
-    ban.until = seconds ? now + seconds : 0;
-    slot = ban_add(&table, now, &ban);
+    char left[16], detail[80];
+    actor_name(actor, ban->by, sizeof ban->by);
+    ban->created = now;
+    ban->until = seconds ? now + seconds : 0;
+    slot = ban_add(&table, now, ban);
     if (slot < 0) { of_tell(&api, actor, "The ban list is full (%d). Remove a ban with /unban.", BAN_MAX); return SV_LIMIT; }
     result = save_slot(slot);
     if (result != SV_OK) {
@@ -191,16 +221,82 @@ static SvResult do_ban(SvEntity actor, char *arguments)
         of_tell(&api, actor, "The ban could not be saved. Check the plugin storage.");
         return result;
     }
-    disconnect(&target);
-    {
-        char left[16], detail[80];
-        ban_left(&ban, now, left, sizeof left);
-        announce("%s was banned: %s.", target.name, ban.reason);
-        of_tell(&api, actor, "Banned %s (ban %d, %s).", target.name, slot, left);
-        snprintf(detail, sizeof detail, "ban %d %s %s", slot, left, ban.reason);
-        record("ban", actor, target.entity, SV_OK, detail);
-    }
+    if (target) notify_and_schedule(target, "banned", ban->reason);
+    ban_left(ban, now, left, sizeof left);
+    announce("%s was banned: %s.", ban->name, ban->reason);
+    of_tell(&api, actor, "Banned %s (ban %d, %s).", ban->name, slot, left);
+    snprintf(detail, sizeof detail, "ban %d %s %s", slot, left, ban->reason);
+    record("ban", actor, target ? target->entity : 0, SV_OK, detail);
     return SV_OK;
+}
+
+static SvResult ban_online(SvEntity actor, const SvPlayerState *target, Ban *ban, uint32_t seconds)
+{
+    SvConnectionState connection = { sizeof connection };
+    if (protected_player(actor, target)) return SV_DENIED;
+    ban->account = of_account(&api, target);
+    if (of_int(&api, "ban_address", 1) && api.read->connection(api.owner, target->entity, &connection) == SV_OK) {
+        ban->has_address = 1;
+        memcpy(ban->address, connection.ip, 4);
+    }
+    if (ban->account < 0 && !ban->has_address) {
+        of_tell(&api, actor, "%s has no account, and address bans are off. Nothing to ban.", target->name);
+        return SV_DENIED;
+    }
+    snprintf(ban->name, sizeof ban->name, "%s", target->name);
+    return apply_ban(actor, target, ban, seconds);
+}
+
+/* /ban acc:N. An account that is online is banned like a player. An account that is offline needs the node bans.offline. */
+static SvResult ban_account(SvEntity actor, const char *text, Ban *ban, uint32_t seconds)
+{
+    SvEntity page[256];
+    uint32_t count, next, i;
+    int32_t number;
+    if (!api.has_account_number) {
+        of_tell(&api, actor, "This server has no account numbers. Use a player name.");
+        return SV_INCOMPATIBLE;
+    }
+    if (!of_number(text, 0, 65534, &number)) {
+        of_tell(&api, actor, "Use acc:N with N from 0 to 65534.");
+        return SV_INVALID;
+    }
+    if (api.read->entities(api.owner, SV_ENTITY_PLAYER, 0, page, 256, &count, &next) == SV_OK)
+        for (i = 0; i < count; ++i) {
+            SvPlayerState state = { sizeof state };
+            if (api.read->player(api.owner, page[i], &state) == SV_OK && of_account(&api, &state) == number)
+                return ban_online(actor, &state, ban, seconds);
+        }
+    if (!of_can(&api, actor, "bans.offline")) {
+        of_tell(&api, actor, "You need the permission bans.offline to ban an account that is not online.");
+        return SV_DENIED;
+    }
+    if (!account_name(number, ban->name, sizeof ban->name)) {
+        of_tell(&api, actor, "No account has the number %d.", (int)number);
+        return SV_NOT_FOUND;
+    }
+    ban->account = number;
+    return apply_ban(actor, NULL, ban, seconds);
+}
+
+static SvResult do_ban(SvEntity actor, char *arguments)
+{
+    char name[64], word[32];
+    char *rest = arguments, *after;
+    SvPlayerState target = { sizeof target };
+    Ban ban;
+    uint32_t seconds = (uint32_t)default_days() * 86400u;
+    SvResult result;
+    if (of_token(&rest, name, sizeof name) != 1) return SV_INVALID;
+    after = rest;
+    if (of_token(&after, word, sizeof word) == 1 && ban_duration(word, &seconds)) rest = after;
+    memset(&ban, 0, sizeof ban);
+    snprintf(ban.reason, sizeof ban.reason, "%s", rest_of(rest));
+    cut_text(ban.reason, sizeof ban.reason);
+    if (!strncmp(name, "acc:", 4)) return ban_account(actor, name + 4, &ban, seconds);
+    result = of_target(&api, actor, name, &target);
+    if (result != SV_OK) return result;
+    return ban_online(actor, &target, &ban, seconds);
 }
 
 static SvResult do_unban(SvEntity actor, char *arguments)
@@ -297,7 +393,7 @@ COMMAND(baninfo, "bans.view", do_baninfo)
 
 static const struct { const char *command, *usage, *summary, *node; } topic_list[] = {
     { "kick", "PLAYER [REASON]", "Disconnect a player. The player can join again", "bans.kick" },
-    { "ban", "PLAYER [TIME] [REASON]", "Ban the account. TIME: 30m, 12h, 7d, 2w or perm", "bans.ban" },
+    { "ban", "PLAYER|acc:N [TIME] [REASON]", "Ban an account. TIME: 30m, 12h, 7d, 2w or perm", "bans.ban" },
     { "unban", "N", "End ban N from the list", "bans.unban" },
     { "bans", "[PAGE]", "List the active bans", "bans.view" },
     { "baninfo", "N", "Show one ban: who, by whom, time left, reason", "bans.view" }
@@ -339,6 +435,7 @@ static SvResult SV_CALL event(SvOwner owner, const SvEvent *base)
     uint32_t now = clock_now();
     int slot;
     (void)owner;
+    if (base->kind == SV_EVENT_TICK) { run_pending(); return SV_OK; }
     if (base->kind != SV_EVENT_JOIN || base->size < sizeof(SvGameEvent)) return SV_OK;
     if (load_table() != SV_OK) return SV_OK;
     if (api.read->player(api.owner, join->player, &player) != SV_OK || player.is_bot) return SV_OK;
@@ -360,10 +457,11 @@ static SvResult SV_CALL enable(const SvHost *host, SvOwner owner)
     if (result != SV_OK) return result;
     if (api.plugins->size < offsetof(SvPlugins, borrow) + sizeof api.plugins->borrow) return SV_INCOMPATIBLE;
     memset(&table, 0, sizeof table); loaded = 0;
+    memset(pending, 0, sizeof pending);
     register_topics(owner);
     for (i = 0; result == SV_OK && i < sizeof commands / sizeof commands[0]; ++i)
         result = host->command(owner, commands[i].name, SV_COMMAND_PUBLIC, commands[i].callback);
-    if (result == SV_OK) result = host->subscribe(owner, SV_EVENT_JOIN, event);
+    if (result == SV_OK) result = host->subscribe(owner, SV_EVENT_JOIN | SV_EVENT_TICK, event);
     return result;
 }
 
@@ -371,6 +469,7 @@ static void SV_CALL disable(SvOwner owner)
 {
     forget_topics(owner);
     memset(&table, 0, sizeof table); loaded = 0;
+    memset(pending, 0, sizeof pending);
 }
 
 SV_EXPORT SvResult SV_CALL sv_plugin_entry(uint32_t abi, SvPlugin *plugin)
