@@ -1,0 +1,476 @@
+{
+  "format": 1,
+  "generated": "2026-11-11T13:15:35Z",
+  "plugins": [
+    {
+      "id": "sv.admcmd",
+      "name": "Admin Commands",
+      "description": "Player tools and server commands.",
+      "author": "Vulpzin",
+      "version": "0.4.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "props",
+        "config",
+        "plugins"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.admcmd-0.4.0-native.svplugin",
+        "sha256": "ef98d7172829c806d60c3bd51fc24d9c1b64d9b7825a5c9018493f754778d750",
+        "size": 86877
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "Names work in place of numbers: /arm uzi works as /arm 5. The new /names command lists them.\n/car takes color=, enter, dist= and yaw=.\nAnswers say in plain words what happened. The target gets a notice. The setting notify_target turns it off (on by default).\nA weapon goes to the other hand or to the inventory when the hand is full. Magazines go to the pockets.\nFailed and dangerous commands go to the Aya log.",
+      "versions": [
+        {
+          "version": "0.4.0",
+          "file": "packages/sv.admcmd-0.4.0-native.svplugin",
+          "sha256": "ef98d7172829c806d60c3bd51fc24d9c1b64d9b7825a5c9018493f754778d750",
+          "size": 86877,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Names work in place of numbers: /arm uzi works as /arm 5. The new /names command lists them.\n/car takes color=, enter, dist= and yaw=.\nAnswers say in plain words what happened. The target gets a notice. The setting notify_target turns it off (on by default).\nA weapon goes to the other hand or to the inventory when the hand is full. Magazines go to the pockets.\nFailed and dangerous commands go to the Aya log.",
+          "capabilities": [
+            "read",
+            "write",
+            "props",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.ayalog",
+      "name": "Aya: Logging System",
+      "description": "One fixed log line for each action of an administrator, for other plugins to call.",
+      "author": "Vulpzin",
+      "version": "0.1.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "config",
+        "plugins"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.ayalog-0.1.0-native.svplugin",
+        "sha256": "5130cd23e811f3fb1e8a23b80be0fa8a97ad56cd2cd1b71c132c4d53cb8ce752",
+        "size": 99283
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "First version. One fixed log line for each action of an administrator, for other plugins to call. It gives /logs and the node logging.view.",
+      "icon": "icons/sv.ayalog.png",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "file": "packages/sv.ayalog-0.1.0-native.svplugin",
+          "sha256": "5130cd23e811f3fb1e8a23b80be0fa8a97ad56cd2cd1b71c132c4d53cb8ce752",
+          "size": 99283,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "First version. One fixed log line for each action of an administrator, for other plugins to call. It gives /logs and the node logging.view.",
+          "capabilities": [
+            "read",
+            "write",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.bans",
+      "name": "Bans",
+      "description": "Bans that last after a restart, and kicks that let the player join again.",
+      "author": "Vulpzin",
+      "version": "0.2.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "storage",
+        "config",
+        "plugins"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.bans-0.2.0-native.svplugin",
+        "sha256": "652b6e5a3533dec8d71db80f61a3f741bcb857e2054f9aba7874e55c93b19714",
+        "size": 71912
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "A player who is banned or kicked now sees a notice with the reason, then the connection ends a moment later.\n/ban acc:N bans an account by number, also when the player is offline. An offline ban needs the permission bans.offline.\nBans also refuse the address of the player. Turn it off with the setting ban_address.\n/ban PLAYER [TIME] [REASON] bans the account. TIME is 30m, 12h, 7d, 2w or perm.\n/unban N, /bans [PAGE] and /baninfo N manage the list. /kick PLAYER [REASON] disconnects a player, who can join again.\nEvery ban, unban and kick goes to the Aya log.",
+      "versions": [
+        {
+          "version": "0.2.0",
+          "file": "packages/sv.bans-0.2.0-native.svplugin",
+          "sha256": "652b6e5a3533dec8d71db80f61a3f741bcb857e2054f9aba7874e55c93b19714",
+          "size": 71912,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "A player who is banned or kicked now sees a notice with the reason, then the connection ends a moment later.\n/ban acc:N bans an account by number, also when the player is offline. An offline ban needs the permission bans.offline.\nBans also refuse the address of the player. Turn it off with the setting ban_address.\n/ban PLAYER [TIME] [REASON] bans the account. TIME is 30m, 12h, 7d, 2w or perm.\n/unban N, /bans [PAGE] and /baninfo N manage the list. /kick PLAYER [REASON] disconnects a player, who can join again.\nEvery ban, unban and kick goes to the Aya log.",
+          "capabilities": [
+            "read",
+            "write",
+            "storage",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        },
+        {
+          "version": "0.1.1",
+          "file": "packages/sv.bans-0.1.1-native.svplugin",
+          "sha256": "85eb09a13c5ccd24d2edb9a492f2c295fc9a9941aa830afe2d1bb3d6a8261171",
+          "size": 71053,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Bans also refuse the address of the player now. Turn it off with the setting ban_address. This changes a new install only.\nFirst version. Bans last after a restart.\n/ban PLAYER [TIME] [REASON] bans the account. TIME is 30m, 12h, 7d, 2w or perm.\n/unban N, /bans [PAGE] and /baninfo N manage the list.\n/kick PLAYER [REASON] disconnects a player. The player can join again.\nA banned account cannot join. The setting ban_address also refuses the address (on by default).\nEvery ban, unban and kick goes to the Aya log.",
+          "capabilities": [
+            "read",
+            "write",
+            "storage",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        },
+        {
+          "version": "0.1.0",
+          "file": "packages/sv.bans-0.1.0-native.svplugin",
+          "sha256": "d78c13b7fcce27138abee5d0585fa4df0796c5b25d11e3b92ced59c50c9810c0",
+          "size": 71053,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "First version. Bans last after a restart.\n/ban PLAYER [TIME] [REASON] bans the account. TIME is 30m, 12h, 7d, 2w or perm.\n/unban N, /bans [PAGE] and /baninfo N manage the list.\n/kick PLAYER [REASON] disconnects a player. The player can join again.\nA banned account cannot join. The setting ban_address also refuses the address (off by default).\nEvery ban, unban and kick goes to the Aya log.",
+          "capabilities": [
+            "read",
+            "write",
+            "storage",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.jukebox",
+      "name": "MIDI Jukebox",
+      "description": "Play MIDI music with any game sound.",
+      "author": "Vulpzin",
+      "version": "0.2.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "config"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [
+        "audio",
+        "midi",
+        "music"
+      ],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.jukebox-0.2.0-native.svplugin",
+        "sha256": "f204ef649cd8dfc9196a12da9a0ebbd25be2e935b26db2d611123c5c0d1b72e6",
+        "size": 112445
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "Plays MIDI files with any game sound, from the console of the server.\nUses the sound table and the instrument table of the plugin.",
+      "versions": [
+        {
+          "version": "0.2.0",
+          "file": "packages/sv.jukebox-0.2.0-native.svplugin",
+          "sha256": "f204ef649cd8dfc9196a12da9a0ebbd25be2e935b26db2d611123c5c0d1b72e6",
+          "size": 112445,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Plays MIDI files with any game sound, from the console of the server.\nUses the sound table and the instrument table of the plugin.",
+          "capabilities": [
+            "read",
+            "write",
+            "config"
+          ],
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.patchouli",
+      "name": "Patchouli: Help System",
+      "description": "Help topics and text pages for the commands of all plugins.",
+      "author": "Vulpzin",
+      "version": "0.1.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "plugins"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.patchouli-0.1.0-native.svplugin",
+        "sha256": "409336c5edbfb168ee7ae1b33a5cd9345533dd2d09a237232f75fd0e5e2661f8",
+        "size": 107929
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "First version. Help topics and text pages for the commands of all plugins. It gives /help and /page.",
+      "icon": "icons/sv.patchouli.png",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "file": "packages/sv.patchouli-0.1.0-native.svplugin",
+          "sha256": "409336c5edbfb168ee7ae1b33a5cd9345533dd2d09a237232f75fd0e5e2661f8",
+          "size": 107929,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "First version. Help topics and text pages for the commands of all plugins. It gives /help and /page.",
+          "capabilities": [
+            "read",
+            "write",
+            "plugins"
+          ],
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.permissions",
+      "name": "Permission System",
+      "description": "Groups, permission nodes and password login policy.",
+      "author": "Vulpzin",
+      "version": "0.3.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "props",
+        "storage",
+        "config",
+        "plugins"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.permissions-0.3.0-native.svplugin",
+        "sha256": "e5959b3fea50956b29e71dca78ac706bbf056ad5e7e5c0891fa07224fd2b433e",
+        "size": 83898
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "Edit groups in a text file. /group export writes user/plugins/sv.permissions.groups.ini. /group reload reads it back.\nA file with an error changes nothing, and the answer says the line.\nOnly the owner group can reload. Group assignments to players still use /perm set.",
+      "versions": [
+        {
+          "version": "0.3.0",
+          "file": "packages/sv.permissions-0.3.0-native.svplugin",
+          "sha256": "e5959b3fea50956b29e71dca78ac706bbf056ad5e7e5c0891fa07224fd2b433e",
+          "size": 83898,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Edit groups in a text file. /group export writes user/plugins/sv.permissions.groups.ini. /group reload reads it back.\nA file with an error changes nothing, and the answer says the line.\nOnly the owner group can reload. Group assignments to players still use /perm set.",
+          "capabilities": [
+            "read",
+            "write",
+            "props",
+            "storage",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        },
+        {
+          "version": "0.2.0",
+          "file": "packages/sv.permissions-0.2.0-native.svplugin",
+          "sha256": "e02447af265a838717c4eccc98271f1c9e5917f3bbf8112f750aee6e0536c1f1",
+          "size": 74473,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Groups of players, permission nodes and the password login policy. Nothing new in this release.",
+          "capabilities": [
+            "read",
+            "write",
+            "props",
+            "storage",
+            "config",
+            "plugins"
+          ],
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.status",
+      "name": "Status",
+      "description": "Adds the status command. It writes the state of the server to the log.",
+      "author": "Vulpzin",
+      "version": "0.1.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.status-0.1.0-native.svplugin",
+        "sha256": "7ac86d845e19d0281e90f9ad4bb3d33afe7c206bd15e8e13fdf886e43b3599b2",
+        "size": 62329
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "First version. The status command writes the state of the server to the log.",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "file": "packages/sv.status-0.1.0-native.svplugin",
+          "sha256": "7ac86d845e19d0281e90f9ad4bb3d33afe7c206bd15e8e13fdf886e43b3599b2",
+          "size": 62329,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "First version. The status command writes the state of the server to the log.",
+          "runtime": "native"
+        }
+      ]
+    },
+    {
+      "id": "sv.testroom",
+      "name": "In-game Test Room",
+      "description": "Test cases that run inside the game, for server developers.",
+      "author": "Vulpzin",
+      "version": "0.3.0",
+      "kind": "plugin",
+      "source": "Official",
+      "license": "GPL-3.0-only",
+      "runtime": "native",
+      "capabilities": [
+        "read",
+        "write",
+        "ai",
+        "economy",
+        "mission",
+        "settings",
+        "storage",
+        "engine",
+        "shop",
+        "props",
+        "config",
+        "plugins",
+        "network"
+      ],
+      "min_api": 1,
+      "needs": [],
+      "tags": [],
+      "channel": "stable",
+      "package": {
+        "file": "packages/sv.testroom-0.3.0-native.svplugin",
+        "sha256": "7689d13399503f4aa37a6f3a706d8119dbd84a39cac32b7bf53c8998e094ad61",
+        "size": 108816
+      },
+      "thumbs": [],
+      "images": [],
+      "changelog": "Test cases that run inside the game. Start them with /test start.\nThis version adds more cases for the plugin API: reads, AI, economy, missions, shops, settings and sounds.",
+      "versions": [
+        {
+          "version": "0.3.0",
+          "file": "packages/sv.testroom-0.3.0-native.svplugin",
+          "sha256": "7689d13399503f4aa37a6f3a706d8119dbd84a39cac32b7bf53c8998e094ad61",
+          "size": 108816,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Test cases that run inside the game. Start them with /test start.\nThis version adds more cases for the plugin API: reads, AI, economy, missions, shops, settings and sounds.",
+          "capabilities": [
+            "read",
+            "write",
+            "ai",
+            "economy",
+            "mission",
+            "settings",
+            "storage",
+            "engine",
+            "shop",
+            "props",
+            "config",
+            "plugins",
+            "network"
+          ],
+          "runtime": "native"
+        },
+        {
+          "version": "0.2.18",
+          "file": "packages/sv.testroom-0.2.18-native.svplugin",
+          "sha256": "699fb3ab2b375ac64e3cedd77a664608ad7b719327d9012f380b489b9d17b339",
+          "size": 104127,
+          "min_api": 1,
+          "channel": "stable",
+          "changelog": "Test cases that run inside the game. Start them with /test start.\nThis version adds more cases for the plugin API: reads, AI, economy, missions, shops, settings and sounds.",
+          "capabilities": [
+            "read",
+            "write",
+            "ai",
+            "economy",
+            "mission",
+            "settings",
+            "storage",
+            "engine",
+            "shop",
+            "props",
+            "config",
+            "plugins",
+            "network"
+          ],
+          "runtime": "native"
+        }
+      ]
+    }
+  ]
+}
